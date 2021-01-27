@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UBNTClient = void 0;
-const restm = require("typed-rest-client/RestClient");
+const restClient = require("typed-rest-client/RestClient");
 const promiseRetry = require("promise-retry");
 const baseOpts = {
     ignoreSslError: true,
@@ -30,59 +30,56 @@ class UBNTClient {
         };
         this.site = site;
         this.unifios = unifios;
-        this.client = new restm.RestClient('typed-rest-client-__tests__', base, undefined, baseOpts);
+        this.client = new restClient.RestClient('typed-rest-client-__tests__', base, undefined, baseOpts);
     }
     login() {
         return __awaiter(this, void 0, void 0, function* () {
-            return promiseRetry(function (retry, number) {
-                return this.client.create(this.unifios ? '/api/auth/login' : '/api/login', this.auth).catch(retry);
-            }.bind(this), retryOptions)
-                .then((response) => {
+            const url = this.unifios ? '/api/auth/login' : '/api/login';
+            return promiseRetry((retry, number) => {
+                return this.client.create(url, this.auth).catch(retry);
+            }, retryOptions).then((response) => {
                 let cookies = response.headers['set-cookie'];
                 let csrfToken = response.headers['x-csrf-token'];
-                let reqOpts = {
+                let requestOptions = {
                     additionalHeaders: {
                         cookie: cookies,
                         'x-csrf-token': csrfToken,
                     },
                 };
-                return reqOpts;
+                return requestOptions;
             });
         });
     }
     blockMac(mac) {
         return __awaiter(this, void 0, void 0, function* () {
-            let data = { mac: mac };
-            let auth = yield this.login();
-            let res = yield promiseRetry(function (retry, number) {
-                return this.client
-                    .create(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/block-sta`, data, auth)
-                    .catch(retry);
-            }.bind(this), retryOptions);
-            return res.statusCode === 200;
+            const data = { mac: mac };
+            const auth = yield this.login();
+            const url = `${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/block-sta`;
+            let response = yield promiseRetry((retry, number) => {
+                return this.client.create(url, data, auth).catch(retry);
+            }, retryOptions);
+            return response.statusCode === 200;
         });
     }
     unblockMac(mac) {
         return __awaiter(this, void 0, void 0, function* () {
-            let data = { mac: mac };
-            let auth = yield this.login();
-            let res = yield promiseRetry(function (retry, number) {
-                return this.client
-                    .create(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/unblock-sta`, data, auth)
-                    .catch(retry);
-            }.bind(this), retryOptions);
-            return res.statusCode === 200;
+            const data = { mac: mac };
+            const auth = yield this.login();
+            const url = `${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/unblock-sta`;
+            let response = yield promiseRetry((retry, number) => {
+                return this.client.create(url, data, auth).catch(retry);
+            }, retryOptions);
+            return response.statusCode === 200;
         });
     }
     isBlocked(mac) {
         return __awaiter(this, void 0, void 0, function* () {
-            let auth = yield this.login();
-            let ret = yield promiseRetry(function (retry, number) {
-                return this.client
-                    .get(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/stat/user/${mac}`, auth)
-                    .catch(retry);
-            }.bind(this), retryOptions);
-            return ret.result.data[0].blocked;
+            const auth = yield this.login();
+            const url = `${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/stat/user/${mac}`;
+            let response = yield promiseRetry((retry, number) => {
+                return this.client.get(url, auth).catch(retry);
+            }, retryOptions);
+            return response.result.data[0].blocked;
         });
     }
 }
