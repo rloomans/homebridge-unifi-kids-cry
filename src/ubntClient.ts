@@ -51,19 +51,21 @@ export class UBNTClient {
     async login(): Promise<restm.IRequestOptions> {
         return promiseRetry(function (retry, number) {
             return this.client.create(this.unifios ? '/api/auth/login' : '/api/login', this.auth).catch(retry)
-        }, retryOptions).then((response) => {
-            let cookies = response.headers['set-cookie']
-            let csrfToken = response.headers['x-csrf-token']
+        }, retryOptions)
+            .bind(this)
+            .then((response) => {
+                let cookies = response.headers['set-cookie']
+                let csrfToken = response.headers['x-csrf-token']
 
-            let reqOpts: restm.IRequestOptions = {
-                additionalHeaders: {
-                    cookie: cookies,
-                    'x-csrf-token': csrfToken,
-                },
-            }
+                let reqOpts: restm.IRequestOptions = {
+                    additionalHeaders: {
+                        cookie: cookies,
+                        'x-csrf-token': csrfToken,
+                    },
+                }
 
-            return reqOpts
-        })
+                return reqOpts
+            })
     }
 
     async blockMac(mac: string): Promise<boolean> {
@@ -73,7 +75,7 @@ export class UBNTClient {
             return this.client
                 .create(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/block-sta`, data, auth)
                 .catch(retry)
-        }, retryOptions)
+        }, retryOptions).bind(this)
 
         return res.statusCode === 200
     }
@@ -96,7 +98,7 @@ export class UBNTClient {
             return this.client
                 .get(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/stat/user/${mac}`, auth)
                 .catch(retry)
-        }, retryOptions)
+        }, retryOptions).bind(this)
 
         return ret.result.data[0].blocked
     }
