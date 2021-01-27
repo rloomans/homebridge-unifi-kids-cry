@@ -1,13 +1,14 @@
 import * as restm from 'typed-rest-client/RestClient'
 import { IRequestOptions } from 'typed-rest-client/Interfaces'
+import * as promiseRetry from 'promise-retry'
 
 interface UBNTLogin {
-    username: String
-    password: String
+    username: string
+    password: string
 }
 
 interface UBNTMac {
-    mac: String
+    mac: string
 }
 
 interface UBNTClientData {
@@ -26,58 +27,67 @@ const baseOpts: IRequestOptions = {
 export class UBNTClient {
     client: restm.RestClient
     auth: UBNTLogin
-    site: String
-    unifios: Boolean
-    constructor(base: String, site: String, unifios: Boolean, user: String, password: String) {
+    site: string
+    unifios: boolean
+    constructor(base: string, site: string, unifios: boolean, user: string, password: string) {
         this.auth = {
             username: user,
             password: password,
         }
         this.site = site
         this.unifios = unifios
-        this.client = new restm.RestClient('typed-rest-client-__tests__', base as string, undefined, baseOpts)
+
+        this.client = new restm.RestClient('typed-rest-client-__tests__', base, undefined, baseOpts)
     }
 
-    async login() {
-        let resp = await this.client.create(this.unifios ? '/api/auth/login' : '/api/login', this.auth)
-        let cookies = resp.headers['set-cookie']
-        let csrfToken = resp.headers['x-csrf-token']
-        let reqOpts: restm.IRequestOptions = {
-            additionalHeaders: {
-                cookie: cookies,
-                'x-csrf-token': csrfToken,
-            },
-        }
-        return reqOpts
+    async login(): Promise<restm.IRequestOptions> {
+        return promiseRetry(function (retry, number) {
+            return this.client.create(this.unifios ? '/api/auth/login' : '/api/login', this.auth).catch(retry)
+        }).then((response) => {
+            let cookies = response.headers['set-cookie']
+            let csrfToken = response.headers['x-csrf-token']
+            let reqOpts: restm.IRequestOptions = {
+                additionalHeaders: {
+                    cookie: cookies,
+                    'x-csrf-token': csrfToken,
+                },
+            }
+            return reqOpts
+        })
     }
-    async blockMac(mac: String): Promise<boolean> {
+
+    async blockMac(mac: string): Promise<boolean> {
         let data: UBNTMac = { mac: mac }
         let auth = await this.login()
-        let res = await this.client.create(
-            `${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/block-sta`,
-            data,
-            auth
-        )
+        let res = await promiseRetry(function (retry, number) {
+            return this.client
+                .create(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/block-sta`, data, auth)
+                .catch(retry)
+        })
+
         return res.statusCode === 200
     }
 
-    async unblockMac(mac: String): Promise<boolean> {
+    async unblockMac(mac: string): Promise<boolean> {
         let data: UBNTMac = { mac: mac }
         let auth = await this.login()
-        let res = await this.client.create(
-            `${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/unblock-sta`,
-            data,
-            auth
-        )
+        let res = await promiseRetry(function (retry, number) {
+            return this.client
+                .create(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/unblock-sta`, data, auth)
+                .catch(retry)
+        })
+
         return res.statusCode === 200
     }
 
-    async isBlocked(mac: String): Promise<boolean> {
+    async isBlocked(mac: string): Promise<boolean> {
         let auth = await this.login()
-        let ret = await this.client.get<UBNTClientResponse>(
-            `${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/stat/user/${mac}`,
-            auth
-        )
+        let ret = await promiseRetry<UBNTClientResponse>(function (retry, number) {
+            return this.client
+                .get(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/stat/user/${mac}`, auth)
+                .catch(retry)
+        })
+
         return ret.result.data[0].blocked
     }
 }

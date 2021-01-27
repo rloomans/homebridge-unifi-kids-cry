@@ -60,24 +60,20 @@ export class UnifiKidsCry {
     refresh(mac: string, service: any) {
         if (this.refreshInterval === 0) return
         //this.log(`fetching refreshments for ${mac} ${service.updating}`)
-        try {
-            this.client
-                .isBlocked(mac)
-                .then((current) => {
-                    //this.log(`on callback ${mac} blocked ${current}`)
-                    let value =
-                        current === true
-                            ? Characteristic.LockCurrentState.SECURED
-                            : Characteristic.LockCurrentState.UNSECURED
-                    this.manageState(service, value)
-                })
-                .catch((shit) => {
-                    this.log(shit)
-                    service.setCharacteristic(Characteristic.LockCurrentState, Characteristic.LockCurrentState.UNKNOWN)
-                })
-        } catch (err) {
-            this.log(err)
-        }
+        this.client
+            .isBlocked(mac)
+            .then((current) => {
+                //this.log(`on callback ${mac} blocked ${current}`)
+                let value =
+                    current === true
+                        ? Characteristic.LockCurrentState.SECURED
+                        : Characteristic.LockCurrentState.UNSECURED
+                this.manageState(service, value)
+            })
+            .catch((shit) => {
+                this.log(shit)
+                service.setCharacteristic(Characteristic.LockCurrentState, Characteristic.LockCurrentState.UNKNOWN)
+            })
         setTimeout(() => this.refresh(mac, service), this.refreshInterval)
     }
 
