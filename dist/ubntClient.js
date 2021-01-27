@@ -36,8 +36,7 @@ class UBNTClient {
         return __awaiter(this, void 0, void 0, function* () {
             return promiseRetry(function (retry, number) {
                 return this.client.create(this.unifios ? '/api/auth/login' : '/api/login', this.auth).catch(retry);
-            }, retryOptions)
-                .bind(this)
+            }.bind(this), retryOptions)
                 .then((response) => {
                 let cookies = response.headers['set-cookie'];
                 let csrfToken = response.headers['x-csrf-token'];
@@ -59,7 +58,7 @@ class UBNTClient {
                 return this.client
                     .create(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/block-sta`, data, auth)
                     .catch(retry);
-            }, retryOptions).bind(this);
+            }.bind(this), retryOptions);
             return res.statusCode === 200;
         });
     }
@@ -71,7 +70,7 @@ class UBNTClient {
                 return this.client
                     .create(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/unblock-sta`, data, auth)
                     .catch(retry);
-            }, retryOptions);
+            }.bind(this), retryOptions);
             return res.statusCode === 200;
         });
     }
@@ -82,7 +81,7 @@ class UBNTClient {
                 return this.client
                     .get(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/stat/user/${mac}`, auth)
                     .catch(retry);
-            }, retryOptions).bind(this);
+            }.bind(this), retryOptions);
             return ret.result.data[0].blocked;
         });
     }
