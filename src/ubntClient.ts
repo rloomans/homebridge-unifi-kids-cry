@@ -1,5 +1,5 @@
-import * as restm from 'typed-rest-client/RestClient';
-import {IRequestOptions} from "typed-rest-client/Interfaces";
+import * as restm from 'typed-rest-client/RestClient'
+import { IRequestOptions } from 'typed-rest-client/Interfaces'
 
 interface UBNTLogin {
     username: String
@@ -11,7 +11,7 @@ interface UBNTMac {
 }
 
 interface UBNTClientData {
-    blocked:boolean
+    blocked: boolean
 }
 
 interface UBNTClientResponse {
@@ -19,54 +19,65 @@ interface UBNTClientResponse {
     data: UBNTClientData[]
 }
 
-const baseOpts:IRequestOptions = {
-    ignoreSslError: true
+const baseOpts: IRequestOptions = {
+    ignoreSslError: true,
 }
 
 export class UBNTClient {
-    client:restm.RestClient
+    client: restm.RestClient
     auth: UBNTLogin
     site: String
     unifios: Boolean
-    constructor(base: String, site:String, unifios:Boolean, user:String, password:String) {
+    constructor(base: String, site: String, unifios: Boolean, user: String, password: String) {
         this.auth = {
             username: user,
-            password: password
+            password: password,
         }
         this.site = site
         this.unifios = unifios
-        this.client = new restm.RestClient('typed-rest-client-__tests__', base as string, undefined, baseOpts);
+        this.client = new restm.RestClient('typed-rest-client-__tests__', base as string, undefined, baseOpts)
     }
 
     async login() {
-        let resp = await this.client.create(this.unifios ? "/api/auth/login" : "/api/login", this.auth)
+        let resp = await this.client.create(this.unifios ? '/api/auth/login' : '/api/login', this.auth)
         let cookies = resp.headers['set-cookie']
         let csrfToken = resp.headers['x-csrf-token']
-        let reqOpts:restm.IRequestOptions = {
-            additionalHeaders:  {
-              cookie: cookies,
-              'x-csrf-token': csrfToken,
-            }
+        let reqOpts: restm.IRequestOptions = {
+            additionalHeaders: {
+                cookie: cookies,
+                'x-csrf-token': csrfToken,
+            },
         }
         return reqOpts
     }
-    async blockMac(mac:String):Promise<boolean> {
-        let data:UBNTMac = {mac: mac}
+    async blockMac(mac: String): Promise<boolean> {
+        let data: UBNTMac = { mac: mac }
         let auth = await this.login()
-        let res = await this.client.create(`${this.unifios ? "/proxy/network" : ""}/api/s/${this.site}/cmd/stamgr/block-sta`, data, auth)
+        let res = await this.client.create(
+            `${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/block-sta`,
+            data,
+            auth
+        )
         return res.statusCode === 200
     }
 
-    async unblockMac(mac:String):Promise<boolean> {
-        let data:UBNTMac = {mac: mac}
+    async unblockMac(mac: String): Promise<boolean> {
+        let data: UBNTMac = { mac: mac }
         let auth = await this.login()
-        let res = await this.client.create(`${this.unifios ? "/proxy/network" : ""}/api/s/${this.site}/cmd/stamgr/unblock-sta`, data, auth)
+        let res = await this.client.create(
+            `${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/unblock-sta`,
+            data,
+            auth
+        )
         return res.statusCode === 200
     }
 
-    async isBlocked(mac:String):Promise<boolean> {
+    async isBlocked(mac: String): Promise<boolean> {
         let auth = await this.login()
-        let ret = await this.client.get<UBNTClientResponse>(`${this.unifios ? "/proxy/network" : ""}/api/s/${this.site}/stat/user/${mac}`, auth)
+        let ret = await this.client.get<UBNTClientResponse>(
+            `${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/stat/user/${mac}`,
+            auth
+        )
         return ret.result.data[0].blocked
     }
 }
