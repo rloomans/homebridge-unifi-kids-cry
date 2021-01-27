@@ -11,14 +11,22 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UBNTClient = void 0;
 const restm = require("typed-rest-client/RestClient");
+const promiseRetry = require("promise-retry");
 const baseOpts = {
-    ignoreSslError: true
+    ignoreSslError: true,
+};
+const retryOptions = {
+    retries: 3,
+    factor: 2,
+    minTimeout: 100,
+    maxTimeout: 2000,
+    randomize: true,
 };
 class UBNTClient {
     constructor(base, site, unifios, user, password) {
         this.auth = {
             username: user,
-            password: password
+            password: password,
         };
         this.site = site;
         this.unifios = unifios;
@@ -26,23 +34,30 @@ class UBNTClient {
     }
     login() {
         return __awaiter(this, void 0, void 0, function* () {
-            let resp = yield this.client.create(this.unifios ? "/api/auth/login" : "/api/login", this.auth);
-            let cookies = resp.headers['set-cookie'];
-            let csrfToken = resp.headers['x-csrf-token'];
-            let reqOpts = {
-                additionalHeaders: {
-                    cookie: cookies,
-                    'x-csrf-token': csrfToken,
-                }
-            };
-            return reqOpts;
+            return promiseRetry(function (retry, number) {
+                return this.client.create(this.unifios ? '/api/auth/login' : '/api/login', this.auth).catch(retry);
+            }, retryOptions).then((response) => {
+                let cookies = response.headers['set-cookie'];
+                let csrfToken = response.headers['x-csrf-token'];
+                let reqOpts = {
+                    additionalHeaders: {
+                        cookie: cookies,
+                        'x-csrf-token': csrfToken,
+                    },
+                };
+                return reqOpts;
+            });
         });
     }
     blockMac(mac) {
         return __awaiter(this, void 0, void 0, function* () {
             let data = { mac: mac };
             let auth = yield this.login();
-            let res = yield this.client.create(`${this.unifios ? "/proxy/network" : ""}/api/s/${this.site}/cmd/stamgr/block-sta`, data, auth);
+            let res = yield promiseRetry(function (retry, number) {
+                return this.client
+                    .create(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/block-sta`, data, auth)
+                    .catch(retry);
+            }, retryOptions);
             return res.statusCode === 200;
         });
     }
@@ -50,14 +65,22 @@ class UBNTClient {
         return __awaiter(this, void 0, void 0, function* () {
             let data = { mac: mac };
             let auth = yield this.login();
-            let res = yield this.client.create(`${this.unifios ? "/proxy/network" : ""}/api/s/${this.site}/cmd/stamgr/unblock-sta`, data, auth);
+            let res = yield promiseRetry(function (retry, number) {
+                return this.client
+                    .create(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/cmd/stamgr/unblock-sta`, data, auth)
+                    .catch(retry);
+            }, retryOptions);
             return res.statusCode === 200;
         });
     }
     isBlocked(mac) {
         return __awaiter(this, void 0, void 0, function* () {
             let auth = yield this.login();
-            let ret = yield this.client.get(`${this.unifios ? "/proxy/network" : ""}/api/s/${this.site}/stat/user/${mac}`, auth);
+            let ret = yield promiseRetry(function (retry, number) {
+                return this.client
+                    .get(`${this.unifios ? '/proxy/network' : ''}/api/s/${this.site}/stat/user/${mac}`, auth)
+                    .catch(retry);
+            }, retryOptions);
             return ret.result.data[0].blocked;
         });
     }

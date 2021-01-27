@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UnifiKidsCry = void 0;
 const ubntClient_1 = require("./ubntClient");
 var Accessory, Service, Characteristic, UUIDGen;
-const moduleName = "homebridge-unifi-mac-block";
-const platformName = "UnifiMacBlocker";
+const moduleName = 'homebridge-unifi-mac-block';
+const platformName = 'UnifiMacBlocker';
 class UnifiKidsCry {
     constructor(log, config, api) {
         this.log = log;
@@ -32,7 +32,7 @@ class UnifiKidsCry {
         }
         else {
             this.accessories.push(accessory);
-            this.bindLockService(accessory.getService("network"), accessory.context.mac);
+            this.bindLockService(accessory.getService('network'), accessory.context.mac);
         }
     }
     manageState(service, value) {
@@ -47,19 +47,19 @@ class UnifiKidsCry {
         if (this.refreshInterval === 0)
             return;
         //this.log(`fetching refreshments for ${mac} ${service.updating}`)
-        try {
-            this.client.isBlocked(mac).then((current) => {
-                //this.log(`on callback ${mac} blocked ${current}`)
-                let value = current === true ? Characteristic.LockCurrentState.SECURED : Characteristic.LockCurrentState.UNSECURED;
-                this.manageState(service, value);
-            }).catch((shit) => {
-                this.log(shit);
-                service.setCharacteristic(Characteristic.LockCurrentState, Characteristic.LockCurrentState.UNKNOWN);
-            });
-        }
-        catch (err) {
-            this.log(err);
-        }
+        this.client
+            .isBlocked(mac)
+            .then((current) => {
+            //this.log(`on callback ${mac} blocked ${current}`)
+            let value = current === true
+                ? Characteristic.LockCurrentState.SECURED
+                : Characteristic.LockCurrentState.UNSECURED;
+            this.manageState(service, value);
+        })
+            .catch((shit) => {
+            this.log(shit);
+            service.setCharacteristic(Characteristic.LockCurrentState, Characteristic.LockCurrentState.UNKNOWN);
+        });
         setTimeout(() => this.refresh(mac, service), this.refreshInterval);
     }
     finishedLoading() {
@@ -77,12 +77,14 @@ class UnifiKidsCry {
         const newAccessory = new Accessory(dev.mac, uuid);
         newAccessory.context.mac = dev.mac;
         newAccessory.reachable = true;
-        newAccessory.getService(Service.AccessoryInformation)
+        newAccessory
+            .getService(Service.AccessoryInformation)
             .setCharacteristic(Characteristic.SerialNumber, dev.mac)
-            .setCharacteristic(Characteristic.Manufacturer, "tears incorporated");
-        let lockService = newAccessory.addService(Service.LockMechanism, "network")
+            .setCharacteristic(Characteristic.Manufacturer, 'tears incorporated');
+        let lockService = newAccessory
+            .addService(Service.LockMechanism, 'network')
             .setCharacteristic(Characteristic.Name, dev.name);
-        let management = newAccessory.addService(Service.LockManagement, "stuffs");
+        let management = newAccessory.addService(Service.LockManagement, 'stuffs');
         this.bindLockManagement(management);
         this.bindLockService(lockService, dev.mac);
         this.api.registerPlatformAccessories(moduleName, platformName, [newAccessory]);
@@ -91,7 +93,7 @@ class UnifiKidsCry {
     }
     bindLockManagement(lock) {
         lock.setCharacteristic(Characteristic.AdministratorOnlyAccess, true);
-        lock.setCharacteristic(Characteristic.Version, "1.0");
+        lock.setCharacteristic(Characteristic.Version, '1.0');
         lock.getCharacteristic(Characteristic.LockControlPoint)
             .on('set', function (value, callback) {
             this.log(`lock control point has ${value}`);
@@ -99,7 +101,7 @@ class UnifiKidsCry {
         })
             .on('get', function (callback) {
             this.log(`lock control point get`);
-            callback("");
+            callback('');
         });
         lock.getCharacteristic(Characteristic.AdministratorOnlyAccess)
             .on('set', function (value, callback) {
@@ -113,44 +115,58 @@ class UnifiKidsCry {
     }
     bindLockService(service, mac) {
         let clazz = this;
-        service.getCharacteristic(Characteristic.LockTargetState)
-            .on('set', function (value, callback) {
+        service.getCharacteristic(Characteristic.LockTargetState).on('set', function (value, callback) {
             service.updating = true;
             let result;
             if (value === Characteristic.LockTargetState.SECURED) {
-                result = clazz.client.blockMac(mac).then((res) => res === true ? Characteristic.LockTargetState.SECURED : Characteristic.LockTargetState.UNSECURED);
+                result = clazz.client
+                    .blockMac(mac)
+                    .then((res) => res === true ? Characteristic.LockTargetState.SECURED : Characteristic.LockTargetState.UNSECURED);
             }
             else if (value === Characteristic.LockTargetState.UNSECURED) {
-                result = clazz.client.unblockMac(mac).then((res) => res === true ? Characteristic.LockTargetState.UNSECURED : Characteristic.LockTargetState.SECURED);
+                result = clazz.client
+                    .unblockMac(mac)
+                    .then((res) => res === true ? Characteristic.LockTargetState.UNSECURED : Characteristic.LockTargetState.SECURED);
             }
             else {
                 result = clazz.client.isBlocked(mac).then((current) => {
                     clazz.log(`${mac} is in blocked state ${current}`);
-                    return (current === true ? Characteristic.LockCurrentState.SECURED : Characteristic.LockCurrentState.UNSECURED);
+                    return current === true
+                        ? Characteristic.LockCurrentState.SECURED
+                        : Characteristic.LockCurrentState.UNSECURED;
                 });
             }
-            result.then((want) => {
+            result
+                .then((want) => {
                 service.getCharacteristic(Characteristic.LockCurrentState).updateValue(want);
                 callback(null);
                 service.updating = false;
             })
                 .catch((shit) => {
                 clazz.log(shit);
-                service.getCharacteristic(Characteristic.LockCurrentState).updateValue(Characteristic.LockCurrentState.UNKNOWN);
+                service
+                    .getCharacteristic(Characteristic.LockCurrentState)
+                    .updateValue(Characteristic.LockCurrentState.UNKNOWN);
                 callback(null);
                 service.updating = false;
             });
         });
-        service.getCharacteristic(Characteristic.LockCurrentState)
-            .on('get', function (callback) {
-            clazz.client.isBlocked(mac).then((current) => {
+        service.getCharacteristic(Characteristic.LockCurrentState).on('get', function (callback) {
+            clazz.client
+                .isBlocked(mac)
+                .then((current) => {
                 clazz.log(`${mac} blocked ${current}`);
-                let value = current === true ? Characteristic.LockCurrentState.SECURED : Characteristic.LockCurrentState.UNSECURED;
+                let value = current === true
+                    ? Characteristic.LockCurrentState.SECURED
+                    : Characteristic.LockCurrentState.UNSECURED;
                 clazz.manageState(service, value);
                 callback(null, value);
-            }).catch((shit) => {
+            })
+                .catch((shit) => {
                 clazz.log(shit);
-                service.getCharacteristic(Characteristic.LockCurrentState).updateValue(Characteristic.LockCurrentState.UNKNOWN);
+                service
+                    .getCharacteristic(Characteristic.LockCurrentState)
+                    .updateValue(Characteristic.LockCurrentState.UNKNOWN);
                 callback(null, Characteristic.LockCurrentState.UNKNOWN);
             });
         });
