@@ -59,11 +59,11 @@ export class UnifiKidsCry {
 
     refresh(mac: string, service: any) {
         if (this.refreshInterval === 0) return
-        //this.log(`fetching refreshments for ${mac} ${service.updating}`)
+        this.log(`fetching refreshments for ${mac} ${service.updating}`)
         this.client
             .isBlocked(mac)
             .then((current) => {
-                //this.log(`on callback ${mac} blocked ${current}`)
+                this.log(`on callback ${mac} blocked ${current}`)
                 let value =
                     current === true
                         ? Characteristic.LockCurrentState.SECURED
@@ -111,44 +111,45 @@ export class UnifiKidsCry {
         lock.setCharacteristic(Characteristic.AdministratorOnlyAccess, true)
         lock.setCharacteristic(Characteristic.Version, '1.0')
         lock.getCharacteristic(Characteristic.LockControlPoint)
-            .on('set', function (value, callback) {
+            .on('set', (value, callback) => {
                 this.log(`lock control point has ${value}`)
                 callback()
             })
-            .on('get', function (callback) {
+            .on('get', (callback) => {
                 this.log(`lock control point get`)
                 callback('')
             })
         lock.getCharacteristic(Characteristic.AdministratorOnlyAccess)
-            .on('set', function (value, callback) {
+            .on('set', (value, callback) => {
                 this.log(`lock admin has ${value}`)
                 callback()
             })
-            .on('get', function (callback) {
+            .on('get', (callback) => {
                 this.log(`lock admin get`)
                 callback(true)
             })
     }
     bindLockService(service, mac: string) {
-        let clazz = this
-        service.getCharacteristic(Characteristic.LockTargetState).on('set', function (value, callback) {
+        service.getCharacteristic(Characteristic.LockTargetState).on('set', (value, callback) => {
             service.updating = true
             let result: Promise<boolean>
             if (value === Characteristic.LockTargetState.SECURED) {
-                result = clazz.client
+                this.log(`locking ${mac}`)
+                result = this.client
                     .blockMac(mac)
                     .then((res) =>
                         res === true ? Characteristic.LockTargetState.SECURED : Characteristic.LockTargetState.UNSECURED
                     )
             } else if (value === Characteristic.LockTargetState.UNSECURED) {
-                result = clazz.client
+                this.log(`unlocking ${mac}`)
+                result = this.client
                     .unblockMac(mac)
                     .then((res) =>
                         res === true ? Characteristic.LockTargetState.UNSECURED : Characteristic.LockTargetState.SECURED
                     )
             } else {
-                result = clazz.client.isBlocked(mac).then((current) => {
-                    clazz.log(`${mac} is in blocked state ${current}`)
+                result = this.client.isBlocked(mac).then((current) => {
+                    this.log(`${mac} is in blocked state ${current}`)
                     return current === true
                         ? Characteristic.LockCurrentState.SECURED
                         : Characteristic.LockCurrentState.UNSECURED
@@ -161,7 +162,7 @@ export class UnifiKidsCry {
                     service.updating = false
                 })
                 .catch((shit) => {
-                    clazz.log(shit)
+                    this.log(shit)
                     service
                         .getCharacteristic(Characteristic.LockCurrentState)
                         .updateValue(Characteristic.LockCurrentState.UNKNOWN)
@@ -169,20 +170,20 @@ export class UnifiKidsCry {
                     service.updating = false
                 })
         })
-        service.getCharacteristic(Characteristic.LockCurrentState).on('get', function (callback) {
-            clazz.client
+        service.getCharacteristic(Characteristic.LockCurrentState).on('get', (callback) => {
+            this.client
                 .isBlocked(mac)
                 .then((current) => {
-                    clazz.log(`${mac} blocked ${current}`)
+                    this.log(`${mac} blocked ${current}`)
                     let value =
                         current === true
                             ? Characteristic.LockCurrentState.SECURED
                             : Characteristic.LockCurrentState.UNSECURED
-                    clazz.manageState(service, value)
+                    this.manageState(service, value)
                     callback(null, value)
                 })
                 .catch((shit) => {
-                    clazz.log(shit)
+                    this.log(shit)
                     service
                         .getCharacteristic(Characteristic.LockCurrentState)
                         .updateValue(Characteristic.LockCurrentState.UNKNOWN)
